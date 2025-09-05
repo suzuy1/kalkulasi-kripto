@@ -170,6 +170,17 @@ export function CryptoProfitGazer() {
       signDisplay: "auto",
     }).format(value);
   };
+  
+  const formatNumberInput = (value: number | string) => {
+    if (value === '' || value === undefined || value === null) return '';
+    const num = Number(String(value).replace(/\./g, ''));
+    if (isNaN(num)) return '';
+    return new Intl.NumberFormat('id-ID').format(num);
+  };
+  
+  const parseFormattedNumber = (value: string) => {
+    return Number(value.replace(/\./g, ''));
+  };
 
   return (
     <div className="space-y-8">
@@ -202,9 +213,14 @@ export function CryptoProfitGazer() {
                       <FormLabel className="text-lg">Initial Investment (IDR)</FormLabel>
                       <FormControl>
                         <Input
-                          type="number"
-                          placeholder="e.g., 15000000"
+                          type="text"
+                          placeholder="e.g., 15.000.000"
                           {...field}
+                          value={formatNumberInput(field.value)}
+                          onChange={(e) => {
+                            const parsedValue = parseFormattedNumber(e.target.value);
+                            field.onChange(isNaN(parsedValue) ? '' : parsedValue);
+                          }}
                           className="text-lg h-12"
                         />
                       </FormControl>
@@ -371,5 +387,3 @@ export function CryptoProfitGazer() {
     </div>
   );
 }
-
-    
