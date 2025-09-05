@@ -19,6 +19,10 @@ import {
   ResponsiveContainer,
   Tooltip,
   Cell,
+  Bar,
+  BarChart,
+  XAxis,
+  YAxis,
 } from "recharts";
 
 import { Button } from "@/components/ui/button";
@@ -52,6 +56,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 const assetSchema = z.object({
@@ -115,6 +120,9 @@ const CHART_COLORS = [
   "hsl(var(--chart-5))",
 ];
 
+const POSITIVE_COLOR = "hsl(142.1 76.2% 36.3%)"; // green-600
+const NEGATIVE_COLOR = "hsl(0 84.2% 60.2%)"; // destructive
+
 export function CryptoProfitGazer() {
   const [results, setResults] = useState<ResultData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -125,7 +133,6 @@ export function CryptoProfitGazer() {
       if (savedData) {
         try {
           const parsedData = JSON.parse(savedData);
-          // Basic validation to ensure it matches our schema
           const result = formSchema.safeParse(parsedData);
           if (result.success) {
             return result.data;
@@ -147,7 +154,9 @@ export function CryptoProfitGazer() {
   const watchedForm = form.watch();
 
   useEffect(() => {
-    localStorage.setItem("cryptoPortfolio", JSON.stringify(watchedForm));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("cryptoPortfolio", JSON.stringify(watchedForm));
+    }
   }, [watchedForm]);
 
   const { fields, append, remove } = useFieldArray({
@@ -491,35 +500,63 @@ export function CryptoProfitGazer() {
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div>
-                  <h4 className="font-medium mb-4 text-center text-lg">Visualisasi Portofolio</h4>
-                  <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Tooltip
-                          cursor={false}
-                          content={<ChartTooltipContent hideLabel nameKey="name" formatter={(value, name, props) => {
-                            const { payload } = props;
-                            return (
-                                <div className="flex flex-col gap-1 p-1">
-                                <div className="font-bold">{payload.name}</div>
-                                <div className="text-sm">Nilai Akhir: {formatCurrency(payload.value)}</div>
-                                <div className={cn("text-sm", payload.profitLoss >= 0 ? 'text-green-400' : 'text-red-500')}>
-                                    Keuntungan/Kerugian: {formatCurrency(payload.profitLoss)}
-                                </div>
-                                </div>
-                            )
-                          }}/>}
-                        />
-                        <Pie data={results.breakdown} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={5}>
-                          {results.breakdown.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </div>
+                 <Tabs defaultValue="pie" className="w-full">
+                    <div className="flex justify-center">
+                      <TabsList>
+                          <TabsTrigger value="pie">Diagram Lingkaran</TabsTrigger>
+                          <TabsTrigger value="bar">Diagram Batang</TabsTrigger>
+                      </TabsList>
+                    </div>
+                    <TabsContent value="pie">
+                        <h4 className="font-medium mb-4 text-center text-lg">Visualisasi Portofolio Akhir</h4>
+                        <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Tooltip
+                                cursor={false}
+                                content={<ChartTooltipContent hideLabel nameKey="name" formatter={(value, name, props) => {
+                                    const { payload } = props;
+                                    return (
+                                        <div className="flex flex-col gap-1 p-1">
+                                        <div className="font-bold">{payload.name}</div>
+                                        <div className="text-sm">Nilai Akhir: {formatCurrency(payload.value)}</div>
+                                        <div className={cn("text-sm", payload.profitLoss >= 0 ? 'text-green-400' : 'text-red-500')}>
+                                            Keuntungan/Kerugian: {formatCurrency(payload.profitLoss)}
+                                        </div>
+                                        </div>
+                                    )
+                                }}/>}
+                                />
+                                <Pie data={results.breakdown} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={5}>
+                                {results.breakdown.map((_, index) => (
+                                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                ))}
+                                </Pie>
+                            </PieChart>
+                            </ResponsiveContainer>
+                        </ChartContainer>
+                    </TabsContent>
+                    <TabsContent value="bar">
+                        <h4 className="font-medium mb-4 text-center text-lg">Visualisasi Keuntungan/Kerugian</h4>
+                         <ChartContainer config={chartConfig} className="mx-auto aspect-video max-h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={results.breakdown} margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
+                                    <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${formatCurrency(Number(value))}`} />
+                                    <Tooltip 
+                                        cursor={{fill: 'transparent'}}
+                                        content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))}/>}
+                                    />
+                                    <Bar dataKey="profitLoss" radius={[4, 4, 0, 0]}>
+                                        {results.breakdown.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.profitLoss >= 0 ? POSITIVE_COLOR : NEGATIVE_COLOR} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </ChartContainer>
+                    </TabsContent>
+                </Tabs>
                 <div>
                   <h4 className="font-medium mb-4">Rincian Aset</h4>
                   <div className="rounded-md border">
@@ -575,3 +612,5 @@ export function CryptoProfitGazer() {
     </div>
   );
 }
+
+    
