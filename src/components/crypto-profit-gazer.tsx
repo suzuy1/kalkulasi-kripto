@@ -10,12 +10,12 @@ import {
   Calculator,
   Loader2,
   Minus,
-  PieChart,
   Plus,
   Trash2,
 } from "lucide-react";
 import {
   Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   Cell,
@@ -492,7 +492,7 @@ export function CryptoProfitGazer() {
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
                 <div>
-                  <h4 className="font-medium mb-4 text-center text-lg flex items-center justify-center gap-2"><PieChart className="h-5 w-5" />Visualisasi Portofolio</h4>
+                  <h4 className="font-medium mb-4 text-center text-lg">Visualisasi Portofolio</h4>
                   <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
