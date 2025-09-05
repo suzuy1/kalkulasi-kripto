@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
@@ -11,6 +11,7 @@ import {
   Loader2,
   Minus,
   Plus,
+  Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,15 +40,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BTCIcon, ETHIcon, SOLIcon, SUIIcon, XRPIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 const assetSchema = z.object({
-  BTC: z.coerce.number(),
-  ETH: z.coerce.number(),
-  SOL: z.coerce.number(),
-  XRP: z.coerce.number(),
-  SUI: z.coerce.number(),
+  name: z.string().min(1, "Nama aset diperlukan"),
+  allocation: z.coerce.number().min(0).max(100),
+  priceChange: z.coerce.number(),
 });
 
 const formSchema = z
@@ -55,18 +53,21 @@ const formSchema = z
     investment: z.coerce
       .number({ invalid_type_error: "Silakan masukkan jumlah yang valid" })
       .positive({ message: "Investasi harus berupa angka positif." }),
-    allocations: assetSchema.refine(
-        (data) => {
-          const total = Object.values(data).reduce((acc, val) => acc + (val || 0), 0);
-          return Math.abs(total - 100) < 0.01;
-        },
-        {
-          message: "Total alokasi harus tepat 100%.",
-          path: [],
-        }
-      ),
-    priceChanges: assetSchema,
-  });
+    assets: z.array(assetSchema),
+  })
+  .refine(
+    (data) => {
+      const totalAllocation = data.assets.reduce(
+        (sum, asset) => sum + asset.allocation,
+        0
+      );
+      return Math.abs(totalAllocation - 100) < 0.01;
+    },
+    {
+      message: "Total alokasi harus tepat 100%.",
+      path: ["assets"],
+    }
+  );
 
 type ResultData = {
   totalProfitLoss: number;
@@ -80,17 +81,6 @@ type ResultData = {
   }[];
 };
 
-const cryptos = [
-  { id: "BTC", name: "Bitcoin", Icon: BTCIcon },
-  { id: "ETH", name: "Ethereum", Icon: ETHIcon },
-  { id: "SOL", name: "Solana", Icon: SOLIcon },
-  { id: "XRP", name: "XRP", Icon: XRPIcon },
-  { id: "SUI", name: "Sui", Icon: SUIIcon },
-] as const;
-
-type CryptoId = (typeof cryptos)[number]["id"];
-
-
 export function CryptoProfitGazer() {
   const [results, setResults] = useState<ResultData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -99,15 +89,25 @@ export function CryptoProfitGazer() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       investment: 7000000,
-      allocations: { BTC: 35, ETH: 20, SOL: 15, XRP: 15, SUI: 15 },
-      priceChanges: { BTC: 0, ETH: 0, SOL: 0, XRP: 0, SUI: 0 },
+      assets: [
+        { name: "BTC", allocation: 35, priceChange: 0 },
+        { name: "ETH", allocation: 20, priceChange: 0 },
+        { name: "SOL", allocation: 15, priceChange: 0 },
+        { name: "XRP", allocation: 15, priceChange: 0 },
+        { name: "SUI", allocation: 15, priceChange: 0 },
+      ],
     },
     mode: "onChange",
   });
 
-  const watchedAllocations = form.watch("allocations");
-  const totalAllocation = Object.values(watchedAllocations).reduce(
-    (sum, v) => sum + (Number(v) || 0),
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "assets",
+  });
+
+  const watchedAssets = form.watch("assets");
+  const totalAllocation = watchedAssets.reduce(
+    (sum, asset) => sum + (Number(asset.allocation) || 0),
     0
   );
 
@@ -118,19 +118,17 @@ export function CryptoProfitGazer() {
     // Simulate calculation delay
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const { investment, allocations, priceChanges } = values;
+    const { investment, assets } = values;
 
     let totalProfitLoss = 0;
-    const breakdown = (['BTC', 'ETH', 'SOL', 'XRP', 'SUI'] as const).map(cryptoId => {
-        const allocation = allocations[cryptoId];
-        const investmentForCrypto = investment * (allocation / 100);
-        const priceChange = priceChanges[cryptoId];
-        const profitLoss = investmentForCrypto * (priceChange / 100);
+    const breakdown = assets.map(asset => {
+        const investmentForCrypto = investment * (asset.allocation / 100);
+        const profitLoss = investmentForCrypto * (asset.priceChange / 100);
         totalProfitLoss += profitLoss;
         return {
-            name: cryptoId,
-            allocation: allocation,
-            priceChange: priceChange,
+            name: asset.name,
+            allocation: asset.allocation,
+            priceChange: asset.priceChange,
             profitLoss: profitLoss,
         };
     });
@@ -167,31 +165,19 @@ export function CryptoProfitGazer() {
     return Number(value.replace(/\./g, ''));
   };
 
-  const updateAllocation = (
-    field: CryptoId,
+  const updateField = (
+    index: number,
+    field: `assets.${number}.allocation` | `assets.${number}.priceChange`,
     delta: number
   ) => {
-    const currentValue = form.getValues(`allocations.${field}`) || 0;
+    const currentValue = form.getValues(field) || 0;
     let newValue = currentValue + delta;
-    if (newValue < 0) newValue = 0;
-    if (newValue > 100) newValue = 100;
-    form.setValue(`allocations.${field}`, newValue, { shouldValidate: true });
+    if (field.endsWith('allocation')) {
+        if (newValue < 0) newValue = 0;
+        if (newValue > 100) newValue = 100;
+    }
+    form.setValue(field, newValue, { shouldValidate: true });
   };
-  
-  const updatePriceChange = (
-    field: CryptoId,
-    delta: number
-  ) => {
-    const currentValue = form.getValues(`priceChanges.${field}`) || 0;
-    let newValue = currentValue + delta;
-    form.setValue(`priceChanges.${field}`, newValue, { shouldValidate: true });
-  };
-  
-  const getIconForName = (name: string) => {
-    const crypto = cryptos.find(c => c.name === name || c.id === name);
-    return crypto ? crypto.Icon : () => null;
-  };
-
 
   return (
     <div className="space-y-8">
@@ -213,9 +199,8 @@ export function CryptoProfitGazer() {
                 Masukkan modal, alokasi aset, dan prediksi perubahan harga.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-8 md:grid-cols-2">
-              <div className="space-y-6">
-                <FormField
+            <CardContent className="space-y-8">
+               <FormField
                   control={form.control}
                   name="investment"
                   render={({ field }) => (
@@ -238,120 +223,149 @@ export function CryptoProfitGazer() {
                     </FormItem>
                   )}
                 />
-                <div className="space-y-4">
-                    <FormLabel className="text-lg">Alokasi Aset (%)</FormLabel>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {cryptos.map((crypto) => (
-                        <FormField
-                        key={crypto.id}
-                        control={form.control}
-                        name={`allocations.${crypto.id}`}
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormControl>
-                                <div className="relative">
-                                <crypto.Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                <Input
-                                    type="number"
-                                    placeholder="%"
-                                    {...field}
-                                    className="pl-10 text-center pr-16"
-                                />
-                                <div className="absolute right-0 top-0 h-full flex items-center">
-                                    <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-full w-8 rounded-r-none border-l rounded-l-md"
-                                    onClick={() => updateAllocation(crypto.id, -1)}
-                                    >
-                                    <Minus className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-full w-8 rounded-l-none rounded-r-md"
-                                    onClick={() => updateAllocation(crypto.id, 1)}
-                                    >
-                                    <Plus className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                </div>
-                            </FormControl>
-                            <FormMessage className="text-xs"/>
-                            </FormItem>
-                        )}
-                        />
-                    ))}
-                    </div>
-                    <div
-                    className={cn(
-                        "text-right font-medium",
-                        Math.abs(totalAllocation - 100) > 0.01
-                        ? "text-destructive"
-                        : "text-green-500"
-                    )}
-                    >
-                    Total: {totalAllocation.toFixed(0)}%
-                    </div>
-                    {form.formState.errors.allocations && (
-                        <p className="text-sm font-medium text-destructive text-right">
-                        {form.formState.errors.allocations.message}
-                        </p>
-                    )}
-                </div>
-              </div>
+              
               <div className="space-y-4">
-                 <FormLabel className="text-lg">Prediksi Perubahan Harga (%)</FormLabel>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {cryptos.map((crypto) => (
-                    <FormField
-                      key={crypto.id}
-                      control={form.control}
-                      name={`priceChanges.${crypto.id}`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormControl>
-                            <div className="relative">
-                              <crypto.Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                              <Input
-                                type="number"
-                                placeholder="%"
-                                {...field}
-                                className="pl-10 pr-16 text-center"
-                              />
-                               <div className="absolute right-0 top-0 h-full flex items-center">
-                                    <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-full w-8 rounded-r-none border-l rounded-l-md"
-                                    onClick={() => updatePriceChange(crypto.id, -1)}
-                                    >
-                                    <Minus className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-full w-8 rounded-l-none rounded-r-md"
-                                    onClick={() => updatePriceChange(crypto.id, 1)}
-                                    >
-                                    <Plus className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                          </FormControl>
-                           <FormMessage className="text-xs"/>
-                        </FormItem>
-                      )}
-                    />
+                <div className="flex justify-between items-center">
+                    <FormLabel className="text-lg">Alokasi & Prediksi Aset</FormLabel>
+                     <div
+                        className={cn(
+                            "font-medium",
+                            Math.abs(totalAllocation - 100) > 0.01
+                            ? "text-destructive"
+                            : "text-green-500"
+                        )}
+                        >
+                        Total Alokasi: {totalAllocation.toFixed(0)}%
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                  {fields.map((field, index) => (
+                    <div key={field.id} className="grid grid-cols-12 gap-2 items-start">
+                        {/* Asset Name */}
+                        <FormField
+                            control={form.control}
+                            name={`assets.${index}.name`}
+                            render={({ field }) => (
+                                <FormItem className="col-span-3">
+                                    <FormControl>
+                                        <Input placeholder="cth: BTC" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        {/* Allocation */}
+                        <FormField
+                            control={form.control}
+                            name={`assets.${index}.allocation`}
+                            render={({ field }) => (
+                                <FormItem className="col-span-4">
+                                <FormControl>
+                                    <div className="relative">
+                                    <Input
+                                        type="number"
+                                        placeholder="Alokasi %"
+                                        {...field}
+                                        className="pr-16 text-center"
+                                    />
+                                    <div className="absolute right-0 top-0 h-full flex items-center">
+                                        <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-full w-8 rounded-r-none border-l rounded-l-md"
+                                        onClick={() => updateField(index, `assets.${index}.allocation`, -1)}
+                                        >
+                                        <Minus className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-full w-8 rounded-l-none rounded-r-md"
+                                        onClick={() => updateField(index, `assets.${index}.allocation`, 1)}
+                                        >
+                                        <Plus className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    </div>
+                                </FormControl>
+                                <FormMessage className="text-xs"/>
+                                </FormItem>
+                            )}
+                        />
+
+                        {/* Price Change */}
+                         <FormField
+                            control={form.control}
+                            name={`assets.${index}.priceChange`}
+                            render={({ field }) => (
+                                <FormItem className="col-span-4">
+                                <FormControl>
+                                    <div className="relative">
+                                    <Input
+                                        type="number"
+                                        placeholder="Harga %"
+                                        {...field}
+                                        className="pr-16 text-center"
+                                    />
+                                    <div className="absolute right-0 top-0 h-full flex items-center">
+                                        <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-full w-8 rounded-r-none border-l rounded-l-md"
+                                        onClick={() => updateField(index, `assets.${index}.priceChange`, -1)}
+                                        >
+                                        <Minus className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-full w-8 rounded-l-none rounded-r-md"
+                                        onClick={() => updateField(index, `assets.${index}.priceChange`, 1)}
+                                        >
+                                        <Plus className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    </div>
+                                </FormControl>
+                                <FormMessage className="text-xs"/>
+                                </FormItem>
+                            )}
+                        />
+                        
+                        {/* Remove Button */}
+                        <div className="col-span-1 flex items-center h-10">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => remove(index)}
+                                className="text-muted-foreground hover:text-destructive"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
                   ))}
                 </div>
-                <div className="text-xs text-muted-foreground pt-2">
-                    Masukkan prediksi perubahan harga untuk setiap aset.
-                </div>
+                 <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => append({ name: "", allocation: 0, priceChange: 0 })}
+                >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Tambah Aset
+                </Button>
+                 {form.formState.errors.assets && (
+                    <p className="text-sm font-medium text-destructive">
+                    {form.formState.errors.assets.message}
+                    </p>
+                )}
               </div>
             </CardContent>
             <CardFooter>
@@ -427,14 +441,10 @@ export function CryptoProfitGazer() {
                   </TableHeader>
                   <TableBody>
                     {results.breakdown.map((item) => {
-                       const Icon = getIconForName(item.name);
                        return (
                       <TableRow key={item.name}>
                         <TableCell className="font-medium">
-                          <div className="flex items-center gap-3">
-                            <Icon className="h-6 w-6" />
-                            {item.name}
-                          </div>
+                          {item.name.toUpperCase()}
                         </TableCell>
                         <TableCell className="text-right">
                           {item.allocation}%
