@@ -88,6 +88,9 @@ const cryptos = [
   { id: "SUI", name: "Sui", Icon: SUIIcon },
 ] as const;
 
+type CryptoId = (typeof cryptos)[number]["id"];
+
+
 export function CryptoProfitGazer() {
   const [results, setResults] = useState<ResultData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -165,7 +168,7 @@ export function CryptoProfitGazer() {
   };
 
   const updateAllocation = (
-    field: "BTC" | "ETH" | "SOL" | "XRP" | "SUI",
+    field: CryptoId,
     delta: number
   ) => {
     const currentValue = form.getValues(`allocations.${field}`) || 0;
@@ -173,6 +176,15 @@ export function CryptoProfitGazer() {
     if (newValue < 0) newValue = 0;
     if (newValue > 100) newValue = 100;
     form.setValue(`allocations.${field}`, newValue, { shouldValidate: true });
+  };
+  
+  const updatePriceChange = (
+    field: CryptoId,
+    delta: number
+  ) => {
+    const currentValue = form.getValues(`priceChanges.${field}`) || 0;
+    let newValue = currentValue + delta;
+    form.setValue(`priceChanges.${field}`, newValue, { shouldValidate: true });
   };
   
   const getIconForName = (name: string) => {
@@ -212,7 +224,7 @@ export function CryptoProfitGazer() {
                       <FormControl>
                         <Input
                           type="text"
-                          placeholder="contoh: 15.000.000"
+                          placeholder="contoh: 7.000.000"
                           {...field}
                           value={formatNumberInput(field.value)}
                           onChange={(e) => {
@@ -307,11 +319,28 @@ export function CryptoProfitGazer() {
                                 type="number"
                                 placeholder="%"
                                 {...field}
-                                className="pl-10 pr-8"
+                                className="pl-10 pr-16 text-center"
                               />
-                               <div className="absolute right-3 top-1/2 -translate-y-1/2 h-full flex items-center text-muted-foreground">
-                                %
-                              </div>
+                               <div className="absolute right-0 top-0 h-full flex items-center">
+                                    <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-full w-8 rounded-r-none border-l rounded-l-md"
+                                    onClick={() => updatePriceChange(crypto.id, -1)}
+                                    >
+                                    <Minus className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-full w-8 rounded-l-none rounded-r-md"
+                                    onClick={() => updatePriceChange(crypto.id, 1)}
+                                    >
+                                    <Plus className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
                           </FormControl>
                            <FormMessage className="text-xs"/>
