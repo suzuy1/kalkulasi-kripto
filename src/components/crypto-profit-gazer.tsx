@@ -268,26 +268,26 @@ export function CryptoProfitGazer() {
                                         type="number"
                                         placeholder="Alokasi %"
                                         {...field}
-                                        className="pr-16 text-center"
+                                        className="pr-10 text-center"
                                     />
-                                    <div className="absolute right-0 top-0 h-full flex items-center">
+                                    <div className="absolute right-1 top-1/2 -translate-y-1/2 h-full flex flex-col justify-center">
                                         <Button
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-full w-8 rounded-r-none border-l rounded-l-md"
-                                        onClick={() => updateField(index, `assets.${index}.allocation`, -1)}
+                                        className="h-1/2 w-8 rounded-bl-none rounded-br-none"
+                                        onClick={() => updateField(index, `assets.${index}.allocation`, 1)}
                                         >
-                                        <Minus className="h-4 w-4" />
+                                        <Plus className="h-3 w-3" />
                                         </Button>
                                         <Button
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-full w-8 rounded-l-none rounded-r-md"
-                                        onClick={() => updateField(index, `assets.${index}.allocation`, 1)}
+                                        className="h-1/2 w-8 rounded-tl-none rounded-tr-none"
+                                        onClick={() => updateField(index, `assets.${index}.allocation`, -1)}
                                         >
-                                        <Plus className="h-4 w-4" />
+                                        <Minus className="h-3 w-3" />
                                         </Button>
                                     </div>
                                     </div>
@@ -309,26 +309,26 @@ export function CryptoProfitGazer() {
                                         type="number"
                                         placeholder="Harga %"
                                         {...field}
-                                        className="pr-16 text-center"
+                                        className="pr-10 text-center"
                                     />
-                                    <div className="absolute right-0 top-0 h-full flex items-center">
+                                    <div className="absolute right-1 top-1/2 -translate-y-1/2 h-full flex flex-col justify-center">
                                         <Button
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-full w-8 rounded-r-none border-l rounded-l-md"
-                                        onClick={() => updateField(index, `assets.${index}.priceChange`, -1)}
+                                        className="h-1/2 w-8 rounded-bl-none rounded-br-none"
+                                        onClick={() => updateField(index, `assets.${index}.priceChange`, 1)}
                                         >
-                                        <Minus className="h-4 w-4" />
+                                        <Plus className="h-3 w-3" />
                                         </Button>
                                         <Button
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-full w-8 rounded-l-none rounded-r-md"
-                                        onClick={() => updateField(index, `assets.${index}.priceChange`, 1)}
+                                        className="h-1/2 w-8 rounded-tl-none rounded-tr-none"
+                                        onClick={() => updateField(index, `assets.${index}.priceChange`, -1)}
                                         >
-                                        <Plus className="h-4 w-4" />
+                                        <Minus className="h-3 w-3" />
                                         </Button>
                                     </div>
                                     </div>
