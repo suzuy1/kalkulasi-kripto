@@ -259,7 +259,7 @@ export function CryptoProfitGazer() {
                                 type="number"
                                 placeholder="%"
                                 {...field}
-                                className="pl-10 text-center"
+                                className="pl-10 text-center pr-16"
                               />
                                <div className="absolute right-0 top-0 h-full flex items-center">
                                 <Button
