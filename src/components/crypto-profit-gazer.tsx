@@ -7,16 +7,12 @@ import * as z from "zod";
 import {
   ArrowDownRight,
   ArrowUpRight,
+  Calculator,
   Loader2,
   Minus,
   Plus,
-  Sparkles,
 } from "lucide-react";
 
-import {
-  predictCryptoProfit,
-} from "@/ai/flows/predict-crypto-profit";
-import { type PredictCryptoProfitOutput } from "@/ai/schemas/predict-crypto-profit.schema";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -43,17 +39,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
 import { BTCIcon, ETHIcon, SOLIcon, SUIIcon, XRPIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const assetSchema = z.object({
-  BTC: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
-  ETH: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
-  SOL: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
-  XRP: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
-  SUI: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
+  BTC: z.coerce.number(),
+  ETH: z.coerce.number(),
+  SOL: z.coerce.number(),
+  XRP: z.coerce.number(),
+  SUI: z.coerce.number(),
 });
 
 const formSchema = z
@@ -61,24 +55,30 @@ const formSchema = z
     investment: z.coerce
       .number({ invalid_type_error: "Silakan masukkan jumlah yang valid" })
       .positive({ message: "Investasi harus berupa angka positif." }),
-    allocations: assetSchema,
+    allocations: assetSchema.refine(
+        (data) => {
+          const total = Object.values(data).reduce((acc, val) => acc + (val || 0), 0);
+          return Math.abs(total - 100) < 0.01;
+        },
+        {
+          message: "Total alokasi harus tepat 100%.",
+          path: [],
+        }
+      ),
     priceChanges: assetSchema,
-  })
-  .refine(
-    (data) => {
-      const total = Object.values(data.allocations).reduce(
-        (acc, val) => acc + val,
-        0
-      );
-      return Math.abs(total - 100) < 0.01;
-    },
-    {
-      message: "Total alokasi harus tepat 100%.",
-      path: ["allocations"],
-    }
-  );
+  });
 
-type ResultData = PredictCryptoProfitOutput;
+type ResultData = {
+  totalProfitLoss: number;
+  percentageChange: number;
+  finalValue: number;
+  breakdown: {
+    name: string;
+    allocation: number;
+    priceChange: number;
+    profitLoss: number;
+  }[];
+};
 
 const cryptos = [
   { id: "BTC", name: "Bitcoin", Icon: BTCIcon },
@@ -91,7 +91,6 @@ const cryptos = [
 export function CryptoProfitGazer() {
   const [results, setResults] = useState<ResultData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -113,29 +112,37 @@ export function CryptoProfitGazer() {
     setIsLoading(true);
     setResults(null);
 
-    try {
-      const result = await predictCryptoProfit({
-        investment: values.investment,
-        allocations: values.allocations,
-      });
-      setResults(result);
+    // Simulate calculation delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Populate priceChanges form values from AI response
-      for (const crypto of cryptos) {
-        const priceChange = result.priceChanges[crypto.id];
-        form.setValue(`priceChanges.${crypto.id}`, priceChange);
-      }
-    } catch (error) {
-      console.error("Kalkulasi AI gagal:", error);
-      toast({
-        variant: "destructive",
-        title: "Prediksi Gagal",
-        description:
-          "Terjadi kesalahan saat berkomunikasi dengan AI. Silakan coba lagi.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    const { investment, allocations, priceChanges } = values;
+
+    let totalProfitLoss = 0;
+    const breakdown = (['BTC', 'ETH', 'SOL', 'XRP', 'SUI'] as const).map(cryptoId => {
+        const allocation = allocations[cryptoId];
+        const investmentForCrypto = investment * (allocation / 100);
+        const priceChange = priceChanges[cryptoId];
+        const profitLoss = investmentForCrypto * (priceChange / 100);
+        totalProfitLoss += profitLoss;
+        return {
+            name: cryptoId,
+            allocation: allocation,
+            priceChange: priceChange,
+            profitLoss: profitLoss,
+        };
+    });
+
+    const percentageChange = (totalProfitLoss / investment) * 100;
+    const finalValue = investment + totalProfitLoss;
+    
+    setResults({
+      totalProfitLoss,
+      percentageChange,
+      finalValue,
+      breakdown,
+    });
+    
+    setIsLoading(false);
   }
 
   const formatCurrency = (value: number) => {
@@ -181,7 +188,7 @@ export function CryptoProfitGazer() {
           Kalkulator Keuntungan Kripto
         </h1>
         <p className="mt-3 text-lg text-muted-foreground">
-          Hitung potensi keuntungan investasi Anda dengan prediksi AI.
+          Hitung potensi keuntungan investasi Anda.
         </p>
       </div>
 
@@ -191,7 +198,7 @@ export function CryptoProfitGazer() {
             <CardHeader>
               <CardTitle>Data Investasi</CardTitle>
               <CardDescription>
-                Masukkan modal dan alokasi aset. AI akan memprediksi perubahan harga.
+                Masukkan modal, alokasi aset, dan prediksi perubahan harga.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-8 md:grid-cols-2">
@@ -284,7 +291,7 @@ export function CryptoProfitGazer() {
                 </div>
               </div>
               <div className="space-y-4">
-                 <FormLabel className="text-lg">Prediksi Perubahan Harga oleh AI (%)</FormLabel>
+                 <FormLabel className="text-lg">Prediksi Perubahan Harga (%)</FormLabel>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {cryptos.map((crypto) => (
                     <FormField
@@ -301,7 +308,6 @@ export function CryptoProfitGazer() {
                                 placeholder="%"
                                 {...field}
                                 className="pl-10 pr-8"
-                                disabled
                               />
                                <div className="absolute right-3 top-1/2 -translate-y-1/2 h-full flex items-center text-muted-foreground">
                                 %
@@ -315,7 +321,7 @@ export function CryptoProfitGazer() {
                   ))}
                 </div>
                 <div className="text-xs text-muted-foreground pt-2">
-                    AI akan memberikan prediksi perubahan harga untuk 7 hari ke depan setelah Anda menekan tombol hitung.
+                    Masukkan prediksi perubahan harga untuk setiap aset.
                 </div>
               </div>
             </CardContent>
@@ -324,9 +330,9 @@ export function CryptoProfitGazer() {
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Sparkles className="mr-2 h-4 w-4" />
+                  <Calculator className="mr-2 h-4 w-4" />
                 )}
-                Jalankan Prediksi AI
+                Hitung
               </Button>
             </CardFooter>
           </Card>
@@ -336,20 +342,12 @@ export function CryptoProfitGazer() {
       {results && (
         <Card>
           <CardHeader>
-            <CardTitle>Hasil Prediksi AI</CardTitle>
+            <CardTitle>Hasil Kalkulasi</CardTitle>
             <CardDescription>
-              Berikut adalah hasil potensial dari investasi Anda berdasarkan prediksi AI untuk 7 hari ke depan.
+              Berikut adalah hasil potensial dari investasi Anda berdasarkan data yang dimasukkan.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <Alert>
-              <Sparkles className="h-4 w-4" />
-              <AlertTitle>Analisis AI</AlertTitle>
-              <AlertDescription>
-                {results.thoughts}
-              </AlertDescription>
-            </Alert>
-          
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
               <div className="rounded-lg border bg-card-foreground/5 p-4">
                 <div className="text-sm text-muted-foreground">Total Keuntungan / Kerugian</div>
