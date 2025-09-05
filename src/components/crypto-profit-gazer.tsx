@@ -227,16 +227,6 @@ export function CryptoProfitGazer() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                     <FormLabel className="text-lg">Alokasi & Prediksi Aset</FormLabel>
-                     <div
-                        className={cn(
-                            "font-medium",
-                            Math.abs(totalAllocation - 100) > 0.01
-                            ? "text-destructive"
-                            : "text-green-500"
-                        )}
-                        >
-                        Total Alokasi: {totalAllocation.toFixed(0)}%
-                    </div>
                 </div>
 
                 <div className="space-y-4">
@@ -353,14 +343,26 @@ export function CryptoProfitGazer() {
                     </div>
                   ))}
                 </div>
-                 <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => append({ name: "", allocation: 0, priceChange: 0 })}
-                >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Tambah Aset
-                </Button>
+                 <div className="flex items-center gap-4">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => append({ name: "", allocation: 0, priceChange: 0 })}
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Tambah Aset
+                    </Button>
+                    <div
+                        className={cn(
+                            "font-medium",
+                            Math.abs(totalAllocation - 100) > 0.01
+                            ? "text-destructive"
+                            : "text-green-500"
+                        )}
+                        >
+                        Total Alokasi: {totalAllocation.toFixed(0)}%
+                    </div>
+                 </div>
                  {form.formState.errors.assets && (
                     <p className="text-sm font-medium text-destructive">
                     {form.formState.errors.assets.message}
