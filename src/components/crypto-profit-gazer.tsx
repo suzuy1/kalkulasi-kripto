@@ -62,6 +62,7 @@ const formSchema = z
       .number({ invalid_type_error: "Silakan masukkan jumlah yang valid" })
       .positive({ message: "Investasi harus berupa angka positif." }),
     allocations: assetSchema,
+    priceChanges: assetSchema,
   })
   .refine(
     (data) => {
@@ -97,6 +98,7 @@ export function CryptoProfitGazer() {
     defaultValues: {
       investment: 15000000,
       allocations: { BTC: 40, ETH: 30, SOL: 15, XRP: 10, SUI: 5 },
+      priceChanges: { BTC: 0, ETH: 0, SOL: 0, XRP: 0, SUI: 0 },
     },
     mode: "onChange",
   });
@@ -112,13 +114,15 @@ export function CryptoProfitGazer() {
     setResults(null);
 
     try {
-      const result = await predictCryptoProfit(values);
+      const result = await predictCryptoProfit({
+        investment: values.investment,
+        allocations: values.allocations,
+      });
       setResults(result);
 
       // Populate priceChanges form values from AI response
       for (const crypto of cryptos) {
         const priceChange = result.priceChanges[crypto.id];
-        // @ts-ignore - priceChanges is not in the form schema but we update it anyway
         form.setValue(`priceChanges.${crypto.id}`, priceChange);
       }
     } catch (error) {
@@ -286,7 +290,6 @@ export function CryptoProfitGazer() {
                     <FormField
                       key={crypto.id}
                       control={form.control}
-                      // @ts-ignore
                       name={`priceChanges.${crypto.id}`}
                       render={({ field }) => (
                         <FormItem>
