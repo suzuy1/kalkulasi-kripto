@@ -8,6 +8,8 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Loader2,
+  Minus,
+  Plus,
 } from "lucide-react";
 
 import { simulateInvestmentScenarios } from "@/ai/flows/simulate-investment-scenarios";
@@ -182,6 +184,17 @@ export function CryptoProfitGazer() {
     return Number(value.replace(/\./g, ''));
   };
 
+  const updateAllocation = (
+    field: "BTC" | "ETH" | "SOL" | "XRP" | "SUI",
+    delta: number
+  ) => {
+    const currentValue = form.getValues(`allocations.${field}`) || 0;
+    let newValue = currentValue + delta;
+    if (newValue < 0) newValue = 0;
+    if (newValue > 100) newValue = 100;
+    form.setValue(`allocations.${field}`, newValue, { shouldValidate: true });
+  };
+
   return (
     <div className="space-y-8">
       <div className="text-center">
@@ -246,8 +259,28 @@ export function CryptoProfitGazer() {
                                 type="number"
                                 placeholder="%"
                                 {...field}
-                                className="pl-10"
+                                className="pl-10 text-center"
                               />
+                               <div className="absolute right-0 top-0 h-full flex items-center">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-full w-8 rounded-r-md rounded-l-none"
+                                  onClick={() => updateAllocation(crypto.id, 1)}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-full w-8 rounded-l-md rounded-r-none border-r"
+                                  onClick={() => updateAllocation(crypto.id, -1)}
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           </FormControl>
                            <FormMessage className="text-xs"/>
