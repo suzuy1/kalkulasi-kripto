@@ -96,7 +96,7 @@ export function CryptoProfitGazer() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       investment: 7000000,
-      allocations: { BTC: 40, ETH: 30, SOL: 15, XRP: 10, SUI: 5 },
+      allocations: { BTC: 35, ETH: 20, SOL: 15, XRP: 15, SUI: 15 },
       priceChanges: { BTC: 0, ETH: 0, SOL: 0, XRP: 0, SUI: 0 },
     },
     mode: "onChange",
