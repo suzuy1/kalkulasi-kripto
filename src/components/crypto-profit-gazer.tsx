@@ -45,18 +45,18 @@ import { cn } from "@/lib/utils";
 import { Separator } from "./ui/separator";
 
 const allocationSchema = z.object({
-  BTC: z.coerce.number().min(0, "Must be >= 0").max(100, "Must be <= 100"),
-  ETH: z.coerce.number().min(0, "Must be >= 0").max(100, "Must be <= 100"),
-  SOL: z.coerce.number().min(0, "Must be >= 0").max(100, "Must be <= 100"),
-  XRP: z.coerce.number().min(0, "Must be >= 0").max(100, "Must be <= 100"),
-  SUI: z.coerce.number().min(0, "Must be >= 0").max(100, "Must be <= 100"),
+  BTC: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
+  ETH: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
+  SOL: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
+  XRP: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
+  SUI: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
 });
 
 const formSchema = z
   .object({
     investment: z.coerce
-      .number({ invalid_type_error: "Please enter a valid amount" })
-      .positive({ message: "Investment must be a positive number." }),
+      .number({ invalid_type_error: "Silakan masukkan jumlah yang valid" })
+      .positive({ message: "Investasi harus berupa angka positif." }),
     allocations: allocationSchema,
   })
   .refine(
@@ -68,7 +68,7 @@ const formSchema = z
       return Math.abs(total - 100) < 0.01;
     },
     {
-      message: "Total allocation must be exactly 100%.",
+      message: "Total alokasi harus tepat 100%.",
       path: ["allocations"],
     }
   );
@@ -124,7 +124,7 @@ export function CryptoProfitGazer() {
       });
 
       if (!scenarios || scenarios.length !== cryptos.length) {
-        throw new Error("Failed to get valid simulation scenarios from AI.");
+        throw new Error("Gagal mendapatkan skenario simulasi yang valid dari AI.");
       }
 
       let totalProfitLoss = 0;
@@ -153,12 +153,12 @@ export function CryptoProfitGazer() {
         breakdown,
       });
     } catch (error) {
-      console.error("Simulation failed:", error);
+      console.error("Simulasi gagal:", error);
       toast({
         variant: "destructive",
-        title: "Simulation Failed",
+        title: "Simulasi Gagal",
         description:
-          "An error occurred while running the simulation. Please try again.",
+          "Terjadi kesalahan saat menjalankan simulasi. Silakan coba lagi.",
       });
     } finally {
       setIsLoading(false);
@@ -199,10 +199,10 @@ export function CryptoProfitGazer() {
     <div className="space-y-8">
       <div className="text-center">
         <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-          Crypto Profit Gazer
+          Pengamat Keuntungan Kripto
         </h1>
         <p className="mt-3 text-lg text-muted-foreground">
-          A Web3 Investment Simulation Tool
+          Alat Simulasi Investasi Web3
         </p>
       </div>
 
@@ -210,10 +210,9 @@ export function CryptoProfitGazer() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle>Investment & Allocation</CardTitle>
+              <CardTitle>Investasi & Alokasi</CardTitle>
               <CardDescription>
-                Enter your initial investment and allocate it across different
-                crypto assets.
+                Masukkan investasi awal Anda dan alokasikan ke berbagai aset kripto.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-8 md:grid-cols-5">
@@ -223,11 +222,11 @@ export function CryptoProfitGazer() {
                   name="investment"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-lg">Initial Investment (IDR)</FormLabel>
+                      <FormLabel className="text-lg">Investasi Awal (IDR)</FormLabel>
                       <FormControl>
                         <Input
                           type="text"
-                          placeholder="e.g., 15.000.000"
+                          placeholder="contoh: 15.000.000"
                           {...field}
                           value={formatNumberInput(field.value)}
                           onChange={(e) => {
@@ -243,7 +242,7 @@ export function CryptoProfitGazer() {
                 />
               </div>
               <div className="space-y-4 md:col-span-3">
-                 <FormLabel className="text-lg">Asset Allocation (%)</FormLabel>
+                 <FormLabel className="text-lg">Alokasi Aset (%)</FormLabel>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {cryptos.map((crypto) => (
                     <FormField
@@ -266,19 +265,19 @@ export function CryptoProfitGazer() {
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  className="h-full w-8 rounded-r-md rounded-l-none"
-                                  onClick={() => updateAllocation(crypto.id, 1)}
+                                  className="h-full w-8 rounded-r-none border-l rounded-l-md"
+                                  onClick={() => updateAllocation(crypto.id, -1)}
                                 >
-                                  <Plus className="h-4 w-4" />
+                                  <Minus className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  className="h-full w-8 rounded-l-md rounded-r-none border-r"
-                                  onClick={() => updateAllocation(crypto.id, -1)}
+                                  className="h-full w-8 rounded-l-none rounded-r-md"
+                                  onClick={() => updateAllocation(crypto.id, 1)}
                                 >
-                                  <Minus className="h-4 w-4" />
+                                  <Plus className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>
@@ -311,7 +310,7 @@ export function CryptoProfitGazer() {
                 {isLoading && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Simulate Scenarios
+                Simulasikan Skenario
               </Button>
             </CardFooter>
           </Card>
@@ -321,16 +320,15 @@ export function CryptoProfitGazer() {
       {results && (
         <Card>
           <CardHeader>
-            <CardTitle>Simulation Results</CardTitle>
+            <CardTitle>Hasil Simulasi</CardTitle>
             <CardDescription>
-              Based on AI-generated scenarios, here is the potential outcome of
-              your investment.
+              Berdasarkan skenario yang dihasilkan AI, berikut adalah hasil potensial dari investasi Anda.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
               <div className="rounded-lg border bg-card-foreground/5 p-4">
-                <div className="text-sm text-muted-foreground">Profit / Loss</div>
+                <div className="text-sm text-muted-foreground">Keuntungan / Kerugian</div>
                 <div
                   className={cn(
                     "text-3xl font-bold",
@@ -343,7 +341,7 @@ export function CryptoProfitGazer() {
                 </div>
               </div>
                <div className="rounded-lg border bg-card-foreground/5 p-4">
-                <div className="text-sm text-muted-foreground">Percentage Change</div>
+                <div className="text-sm text-muted-foreground">Perubahan Persentase</div>
                  <div
                   className={cn(
                     "text-3xl font-bold flex items-center justify-center gap-2",
@@ -357,7 +355,7 @@ export function CryptoProfitGazer() {
                 </div>
               </div>
                <div className="rounded-lg border bg-card-foreground/5 p-4">
-                <div className="text-sm text-muted-foreground">Final Portfolio Value</div>
+                <div className="text-sm text-muted-foreground">Nilai Portofolio Akhir</div>
                 <div className="text-3xl font-bold">
                   {formatCurrency(results.finalValue)}
                 </div>
@@ -365,15 +363,15 @@ export function CryptoProfitGazer() {
             </div>
 
             <div>
-              <h4 className="font-medium mb-2">Detailed Breakdown</h4>
+              <h4 className="font-medium mb-2">Rincian Detail</h4>
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[150px]">Asset</TableHead>
-                      <TableHead className="text-right">Allocation</TableHead>
-                      <TableHead className="text-right">Return Rate</TableHead>
-                      <TableHead className="text-right">Profit/Loss</TableHead>
+                      <TableHead className="w-[150px]">Aset</TableHead>
+                      <TableHead className="text-right">Alokasi</TableHead>
+                      <TableHead className="text-right">Tingkat Pengembalian</TableHead>
+                      <TableHead className="text-right">Keuntungan/Kerugian</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
