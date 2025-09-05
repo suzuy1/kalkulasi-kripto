@@ -100,7 +100,7 @@ export function CryptoProfitGazer() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      investment: 1000,
+      investment: 15000000,
       allocations: { BTC: 40, ETH: 30, SOL: 15, XRP: 10, SUI: 5 },
     },
     mode: "onChange",
@@ -164,9 +164,9 @@ export function CryptoProfitGazer() {
   }
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("id-ID", {
       style: "currency",
-      currency: "USD",
+      currency: "IDR",
       signDisplay: "auto",
     }).format(value);
   };
@@ -199,11 +199,11 @@ export function CryptoProfitGazer() {
                   name="investment"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-lg">Initial Investment (USD)</FormLabel>
+                      <FormLabel className="text-lg">Initial Investment (IDR)</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          placeholder="e.g., 1000"
+                          placeholder="e.g., 15000000"
                           {...field}
                           className="text-lg h-12"
                         />
@@ -371,3 +371,5 @@ export function CryptoProfitGazer() {
     </div>
   );
 }
+
+    
