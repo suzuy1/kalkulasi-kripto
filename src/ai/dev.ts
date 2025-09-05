@@ -1,6 +1,5 @@
 import { config } from 'dotenv';
 config();
 
-// import '@/ai/flows/simulate-investment-scenarios.ts';
-
+import '@/ai/flows/predict-crypto-profit.ts';
     
