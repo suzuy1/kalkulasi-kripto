@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -10,9 +10,16 @@ import {
   Calculator,
   Loader2,
   Minus,
+  PieChart,
   Plus,
   Trash2,
 } from "lucide-react";
+import {
+  Pie,
+  ResponsiveContainer,
+  Tooltip,
+  Cell,
+} from "recharts";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +47,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
 
 const assetSchema = z.object({
@@ -68,6 +80,8 @@ const formSchema = z
       path: ["assets"],
     }
   );
+  
+type FormData = z.infer<typeof formSchema>;
 
 type ResultData = {
   totalProfitLoss: number;
@@ -75,47 +89,81 @@ type ResultData = {
   finalValue: number;
   breakdown: {
     name: string;
+    value: number;
     allocation: number;
     priceChange: number;
     profitLoss: number;
   }[];
 };
 
+const defaultValues: FormData = {
+  investment: 7000000,
+  assets: [
+    { name: "BTC", allocation: 35, priceChange: 0 },
+    { name: "ETH", allocation: 20, priceChange: 0 },
+    { name: "SOL", allocation: 15, priceChange: 0 },
+    { name: "XRP", allocation: 15, priceChange: 0 },
+    { name: "SUI", allocation: 15, priceChange: 0 },
+  ],
+};
+
+const CHART_COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+];
+
 export function CryptoProfitGazer() {
   const [results, setResults] = useState<ResultData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  const getInitialValues = (): FormData => {
+    if (typeof window !== "undefined") {
+      const savedData = localStorage.getItem("cryptoPortfolio");
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          // Basic validation to ensure it matches our schema
+          const result = formSchema.safeParse(parsedData);
+          if (result.success) {
+            return result.data;
+          }
+        } catch (error) {
+          console.error("Failed to parse saved portfolio:", error);
+        }
+      }
+    }
+    return defaultValues;
+  };
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      investment: 7000000,
-      assets: [
-        { name: "BTC", allocation: 35, priceChange: 0 },
-        { name: "ETH", allocation: 20, priceChange: 0 },
-        { name: "SOL", allocation: 15, priceChange: 0 },
-        { name: "XRP", allocation: 15, priceChange: 0 },
-        { name: "SUI", allocation: 15, priceChange: 0 },
-      ],
-    },
+    defaultValues: getInitialValues(),
     mode: "onChange",
   });
+  
+  const watchedForm = form.watch();
+
+  useEffect(() => {
+    localStorage.setItem("cryptoPortfolio", JSON.stringify(watchedForm));
+  }, [watchedForm]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "assets",
   });
 
-  const watchedAssets = form.watch("assets");
-  const totalAllocation = watchedAssets.reduce(
+  const totalAllocation = watchedForm.assets.reduce(
     (sum, asset) => sum + (Number(asset.allocation) || 0),
     0
   );
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormData) {
     setIsLoading(true);
     setResults(null);
 
-    // Simulate calculation delay
     await new Promise(resolve => setTimeout(resolve, 500));
 
     const { investment, assets } = values;
@@ -127,13 +175,14 @@ export function CryptoProfitGazer() {
         totalProfitLoss += profitLoss;
         return {
             name: asset.name,
+            value: investmentForCrypto + profitLoss,
             allocation: asset.allocation,
             priceChange: asset.priceChange,
             profitLoss: profitLoss,
         };
     });
 
-    const percentageChange = (totalProfitLoss / investment) * 100;
+    const percentageChange = investment > 0 ? (totalProfitLoss / investment) * 100 : 0;
     const finalValue = investment + totalProfitLoss;
     
     setResults({
@@ -176,8 +225,20 @@ export function CryptoProfitGazer() {
         if (newValue < 0) newValue = 0;
         if (newValue > 100) newValue = 100;
     }
-    form.setValue(field, newValue, { shouldValidate: true });
+    form.setValue(field, newValue, { shouldValidate: true, shouldDirty: true });
   };
+  
+  const chartConfig = results
+    ? results.breakdown.reduce((config, item, index) => {
+        return {
+          ...config,
+          [item.name.toLowerCase()]: {
+            label: item.name,
+            color: CHART_COLORS[index % CHART_COLORS.length],
+          },
+        };
+      }, {})
+    : {};
 
   return (
     <div className="space-y-8">
@@ -186,7 +247,7 @@ export function CryptoProfitGazer() {
           Kalkulator Keuntungan Kripto
         </h1>
         <p className="mt-3 text-lg text-muted-foreground">
-          Hitung potensi keuntungan investasi Anda.
+          Hitung dan visualisasikan potensi keuntungan investasi Anda.
         </p>
       </div>
 
@@ -392,7 +453,7 @@ export function CryptoProfitGazer() {
               Berikut adalah hasil potensial dari investasi Anda berdasarkan data yang dimasukkan.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-8">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
               <div className="rounded-lg border bg-card-foreground/5 p-4">
                 <div className="text-sm text-muted-foreground">Total Keuntungan / Kerugian</div>
@@ -428,54 +489,85 @@ export function CryptoProfitGazer() {
                 </div>
               </div>
             </div>
-
-            <div>
-              <h4 className="font-medium mb-2">Rincian Aset</h4>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[150px]">Aset</TableHead>
-                      <TableHead className="text-right">Alokasi</TableHead>
-                      <TableHead className="text-right">Prediksi Harga</TableHead>
-                      <TableHead className="text-right">Keuntungan/Kerugian</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {results.breakdown.map((item) => {
-                       return (
-                      <TableRow key={item.name}>
-                        <TableCell className="font-medium">
-                          {item.name.toUpperCase()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {item.allocation}%
-                        </TableCell>
-                        <TableCell
-                          className={cn(
-                            "text-right",
-                            item.priceChange >= 0
-                              ? "text-green-400"
-                              : "text-red-500"
-                          )}
-                        >
-                          {item.priceChange.toFixed(2)}%
-                        </TableCell>
-                        <TableCell
-                          className={cn(
-                            "text-right",
-                            item.profitLoss >= 0
-                              ? "text-green-400"
-                              : "text-red-500"
-                          )}
-                        >
-                          {formatCurrency(item.profitLoss)}
-                        </TableCell>
-                      </TableRow>
-                    )})}
-                  </TableBody>
-                </Table>
-              </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div>
+                  <h4 className="font-medium mb-4 text-center text-lg flex items-center justify-center gap-2"><PieChart className="h-5 w-5" />Visualisasi Portofolio</h4>
+                  <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Tooltip
+                          cursor={false}
+                          content={<ChartTooltipContent hideLabel nameKey="name" formatter={(value, name, props) => {
+                            const { payload } = props;
+                            return (
+                                <div className="flex flex-col gap-1 p-1">
+                                <div className="font-bold">{payload.name}</div>
+                                <div className="text-sm">Nilai Akhir: {formatCurrency(payload.value)}</div>
+                                <div className={cn("text-sm", payload.profitLoss >= 0 ? 'text-green-400' : 'text-red-500')}>
+                                    Keuntungan/Kerugian: {formatCurrency(payload.profitLoss)}
+                                </div>
+                                </div>
+                            )
+                          }}/>}
+                        />
+                        <Pie data={results.breakdown} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={5}>
+                          {results.breakdown.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-4">Rincian Aset</h4>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[150px]">Aset</TableHead>
+                          <TableHead className="text-right">Alokasi</TableHead>
+                          <TableHead className="text-right">Prediksi Harga</TableHead>
+                          <TableHead className="text-right">Keuntungan/Kerugian</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {results.breakdown.map((item) => {
+                           return (
+                          <TableRow key={item.name}>
+                            <TableCell className="font-medium">
+                              {item.name.toUpperCase()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {item.allocation}%
+                            </TableCell>
+                            <TableCell
+                              className={cn(
+                                "text-right",
+                                item.priceChange >= 0
+                                  ? "text-green-400"
+                                  : "text-red-500"
+                              )}
+                            >
+                              {item.priceChange.toFixed(2)}%
+                            </TableCell>
+                            <TableCell
+                              className={cn(
+                                "text-right",
+                                item.profitLoss >= 0
+                                  ? "text-green-400"
+                                  : "text-red-500"
+                              )}
+                            >
+                              {formatCurrency(item.profitLoss)}
+                            </TableCell>
+                          </TableRow>
+                        )})}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
             </div>
           </CardContent>
         </Card>
