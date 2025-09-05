@@ -12,7 +12,6 @@ import {
   Plus,
 } from "lucide-react";
 
-import { simulateInvestmentScenarios } from "@/ai/flows/simulate-investment-scenarios";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -42,9 +41,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { BTCIcon, ETHIcon, SOLIcon, SUIIcon, XRPIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import { Separator } from "./ui/separator";
 
-const allocationSchema = z.object({
+const assetSchema = z.object({
   BTC: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
   ETH: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
   SOL: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
@@ -52,12 +50,21 @@ const allocationSchema = z.object({
   SUI: z.coerce.number().min(0, "Harus >= 0").max(100, "Harus <= 100"),
 });
 
+const priceChangeSchema = z.object({
+    BTC: z.coerce.number(),
+    ETH: z.coerce.number(),
+    SOL: z.coerce.number(),
+    XRP: z.coerce.number(),
+    SUI: z.coerce.number(),
+});
+
 const formSchema = z
   .object({
     investment: z.coerce
       .number({ invalid_type_error: "Silakan masukkan jumlah yang valid" })
       .positive({ message: "Investasi harus berupa angka positif." }),
-    allocations: allocationSchema,
+    allocations: assetSchema,
+    priceChanges: priceChangeSchema,
   })
   .refine(
     (data) => {
@@ -81,7 +88,7 @@ type ResultData = {
     name: string;
     icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
     allocation: number;
-    returnRate: number;
+    priceChange: number;
     profitLoss: number;
   }[];
 };
@@ -104,6 +111,7 @@ export function CryptoProfitGazer() {
     defaultValues: {
       investment: 15000000,
       allocations: { BTC: 40, ETH: 30, SOL: 15, XRP: 10, SUI: 5 },
+      priceChanges: { BTC: 10, ETH: 15, SOL: 20, XRP: 5, SUI: 30 },
     },
     mode: "onChange",
   });
@@ -114,55 +122,50 @@ export function CryptoProfitGazer() {
     0
   );
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setResults(null);
 
-    try {
-      const { scenarios } = await simulateInvestmentScenarios({
-        numberOfScenarios: cryptos.length,
-      });
-
-      if (!scenarios || scenarios.length !== cryptos.length) {
-        throw new Error("Gagal mendapatkan skenario simulasi yang valid dari AI.");
-      }
-
-      let totalProfitLoss = 0;
-      const breakdown = cryptos.map((crypto, index) => {
-        const allocation = values.allocations[crypto.id];
-        const investmentForCrypto = values.investment * (allocation / 100);
-        const returnRate = scenarios[index].returnRate;
-        const profitLoss = investmentForCrypto * returnRate;
-        totalProfitLoss += profitLoss;
-        return {
-          name: crypto.name,
-          icon: crypto.Icon,
-          allocation: allocation,
-          returnRate: returnRate,
-          profitLoss: profitLoss,
-        };
-      });
-
-      const percentageChange = (totalProfitLoss / values.investment) * 100;
-      const finalValue = values.investment + totalProfitLoss;
-
-      setResults({
-        totalProfitLoss,
-        percentageChange,
-        finalValue,
-        breakdown,
-      });
-    } catch (error) {
-      console.error("Simulasi gagal:", error);
-      toast({
-        variant: "destructive",
-        title: "Simulasi Gagal",
-        description:
-          "Terjadi kesalahan saat menjalankan simulasi. Silakan coba lagi.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    // Simulate a short delay for UX
+    setTimeout(() => {
+        try {
+            let totalProfitLoss = 0;
+            const breakdown = cryptos.map((crypto) => {
+                const allocation = values.allocations[crypto.id];
+                const investmentForCrypto = values.investment * (allocation / 100);
+                const priceChange = values.priceChanges[crypto.id];
+                const profitLoss = investmentForCrypto * (priceChange / 100);
+                totalProfitLoss += profitLoss;
+                return {
+                    name: crypto.name,
+                    icon: crypto.Icon,
+                    allocation: allocation,
+                    priceChange: priceChange,
+                    profitLoss: profitLoss,
+                };
+            });
+    
+            const percentageChange = (totalProfitLoss / values.investment) * 100;
+            const finalValue = values.investment + totalProfitLoss;
+    
+            setResults({
+                totalProfitLoss,
+                percentageChange,
+                finalValue,
+                breakdown,
+            });
+        } catch (error) {
+            console.error("Kalkulasi gagal:", error);
+            toast({
+                variant: "destructive",
+                title: "Kalkulasi Gagal",
+                description:
+                "Terjadi kesalahan saat menghitung. Silakan coba lagi.",
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    }, 500);
   }
 
   const formatCurrency = (value: number) => {
@@ -199,10 +202,10 @@ export function CryptoProfitGazer() {
     <div className="space-y-8">
       <div className="text-center">
         <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-          Pengamat Keuntungan Kripto
+          Kalkulator Keuntungan Kripto
         </h1>
         <p className="mt-3 text-lg text-muted-foreground">
-          Alat Simulasi Investasi Web3
+          Hitung potensi keuntungan investasi Anda.
         </p>
       </div>
 
@@ -210,19 +213,19 @@ export function CryptoProfitGazer() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle>Investasi & Alokasi</CardTitle>
+              <CardTitle>Data Investasi</CardTitle>
               <CardDescription>
-                Masukkan investasi awal Anda dan alokasikan ke berbagai aset kripto.
+                Masukkan modal, alokasi aset, dan prediksi perubahan harga.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-8 md:grid-cols-5">
-              <div className="space-y-4 md:col-span-2">
+            <CardContent className="grid gap-8 md:grid-cols-2">
+              <div className="space-y-6">
                 <FormField
                   control={form.control}
                   name="investment"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-lg">Investasi Awal (IDR)</FormLabel>
+                      <FormLabel className="text-lg">Modal Awal (IDR)</FormLabel>
                       <FormControl>
                         <Input
                           type="text"
@@ -240,15 +243,78 @@ export function CryptoProfitGazer() {
                     </FormItem>
                   )}
                 />
+                <div className="space-y-4">
+                    <FormLabel className="text-lg">Alokasi Aset (%)</FormLabel>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {cryptos.map((crypto) => (
+                        <FormField
+                        key={crypto.id}
+                        control={form.control}
+                        name={`allocations.${crypto.id}`}
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormControl>
+                                <div className="relative">
+                                <crypto.Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                <Input
+                                    type="number"
+                                    placeholder="%"
+                                    {...field}
+                                    className="pl-10 text-center pr-16"
+                                />
+                                <div className="absolute right-0 top-0 h-full flex items-center">
+                                    <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-full w-8 rounded-r-none border-l rounded-l-md"
+                                    onClick={() => updateAllocation(crypto.id, -1)}
+                                    >
+                                    <Minus className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-full w-8 rounded-l-none rounded-r-md"
+                                    onClick={() => updateAllocation(crypto.id, 1)}
+                                    >
+                                    <Plus className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                </div>
+                            </FormControl>
+                            <FormMessage className="text-xs"/>
+                            </FormItem>
+                        )}
+                        />
+                    ))}
+                    </div>
+                    <div
+                    className={cn(
+                        "text-right font-medium",
+                        Math.abs(totalAllocation - 100) > 0.01
+                        ? "text-destructive"
+                        : "text-green-500"
+                    )}
+                    >
+                    Total: {totalAllocation.toFixed(0)}%
+                    </div>
+                    {form.formState.errors.allocations && (
+                        <p className="text-sm font-medium text-destructive text-right">
+                        {form.formState.errors.allocations.message}
+                        </p>
+                    )}
+                </div>
               </div>
-              <div className="space-y-4 md:col-span-3">
-                 <FormLabel className="text-lg">Alokasi Aset (%)</FormLabel>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="space-y-4">
+                 <FormLabel className="text-lg">Prediksi Perubahan Harga (%)</FormLabel>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {cryptos.map((crypto) => (
                     <FormField
                       key={crypto.id}
                       control={form.control}
-                      name={`allocations.${crypto.id}`}
+                      name={`priceChanges.${crypto.id}`}
                       render={({ field }) => (
                         <FormItem>
                           <FormControl>
@@ -258,27 +324,10 @@ export function CryptoProfitGazer() {
                                 type="number"
                                 placeholder="%"
                                 {...field}
-                                className="pl-10 text-center pr-16"
+                                className="pl-10"
                               />
-                               <div className="absolute right-0 top-0 h-full flex items-center">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-full w-8 rounded-r-none border-l rounded-l-md"
-                                  onClick={() => updateAllocation(crypto.id, -1)}
-                                >
-                                  <Minus className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-full w-8 rounded-l-none rounded-r-md"
-                                  onClick={() => updateAllocation(crypto.id, 1)}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
+                               <div className="absolute right-3 top-1/2 -translate-y-1/2 h-full flex items-center text-muted-foreground">
+                                %
                               </div>
                             </div>
                           </FormControl>
@@ -288,21 +337,6 @@ export function CryptoProfitGazer() {
                     />
                   ))}
                 </div>
-                <div
-                  className={cn(
-                    "text-right font-medium",
-                    Math.abs(totalAllocation - 100) > 0.01
-                      ? "text-destructive"
-                      : "text-green-500"
-                  )}
-                >
-                  Total: {totalAllocation.toFixed(0)}%
-                </div>
-                 {form.formState.errors.allocations && (
-                    <p className="text-sm font-medium text-destructive text-right">
-                      {form.formState.errors.allocations.message}
-                    </p>
-                  )}
               </div>
             </CardContent>
             <CardFooter>
@@ -310,7 +344,7 @@ export function CryptoProfitGazer() {
                 {isLoading && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Simulasikan Skenario
+                Hitung Keuntungan
               </Button>
             </CardFooter>
           </Card>
@@ -320,15 +354,15 @@ export function CryptoProfitGazer() {
       {results && (
         <Card>
           <CardHeader>
-            <CardTitle>Hasil Simulasi</CardTitle>
+            <CardTitle>Hasil Kalkulasi</CardTitle>
             <CardDescription>
-              Berdasarkan skenario yang dihasilkan AI, berikut adalah hasil potensial dari investasi Anda.
+              Berikut adalah hasil potensial dari investasi Anda berdasarkan data yang dimasukkan.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
               <div className="rounded-lg border bg-card-foreground/5 p-4">
-                <div className="text-sm text-muted-foreground">Keuntungan / Kerugian</div>
+                <div className="text-sm text-muted-foreground">Total Keuntungan / Kerugian</div>
                 <div
                   className={cn(
                     "text-3xl font-bold",
@@ -363,14 +397,14 @@ export function CryptoProfitGazer() {
             </div>
 
             <div>
-              <h4 className="font-medium mb-2">Rincian Detail</h4>
+              <h4 className="font-medium mb-2">Rincian Aset</h4>
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[150px]">Aset</TableHead>
                       <TableHead className="text-right">Alokasi</TableHead>
-                      <TableHead className="text-right">Tingkat Pengembalian</TableHead>
+                      <TableHead className="text-right">Perubahan Harga</TableHead>
                       <TableHead className="text-right">Keuntungan/Kerugian</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -389,12 +423,12 @@ export function CryptoProfitGazer() {
                         <TableCell
                           className={cn(
                             "text-right",
-                            item.returnRate >= 0
+                            item.priceChange >= 0
                               ? "text-green-400"
                               : "text-red-500"
                           )}
                         >
-                          {(item.returnRate * 100).toFixed(2)}%
+                          {item.priceChange.toFixed(2)}%
                         </TableCell>
                         <TableCell
                           className={cn(
@@ -418,3 +452,5 @@ export function CryptoProfitGazer() {
     </div>
   );
 }
+
+    

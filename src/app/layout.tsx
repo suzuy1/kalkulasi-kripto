@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'Pengamat Keuntungan Kripto',
-  description: 'Alat Simulasi Investasi Web3',
+  title: 'Kalkulator Keuntungan Kripto',
+  description: 'Alat Kalkulator Investasi Web3',
 };
 
 export default function RootLayout({
@@ -26,3 +26,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+    
