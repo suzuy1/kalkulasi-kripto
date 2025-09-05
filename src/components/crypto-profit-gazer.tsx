@@ -95,7 +95,7 @@ export function CryptoProfitGazer() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      investment: 15000000,
+      investment: 7000000,
       allocations: { BTC: 40, ETH: 30, SOL: 15, XRP: 10, SUI: 5 },
       priceChanges: { BTC: 0, ETH: 0, SOL: 0, XRP: 0, SUI: 0 },
     },
