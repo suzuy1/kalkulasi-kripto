@@ -324,7 +324,7 @@ export function CryptoProfitGazer() {
                                 type="number"
                                 placeholder="%"
                                 {...field}
-                                className="pl-10"
+                                className="pl-10 pr-8"
                               />
                                <div className="absolute right-3 top-1/2 -translate-y-1/2 h-full flex items-center text-muted-foreground">
                                 %
@@ -452,5 +452,3 @@ export function CryptoProfitGazer() {
     </div>
   );
 }
-
-    
